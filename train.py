@@ -10,7 +10,6 @@ from config import device, grad_clip, print_freq, num_workers
 from data_gen import FrameDataset
 from mobilenet_v2 import MobileNetV2
 from models import ArcMarginModel
-from test import test
 from utils import parse_args, save_checkpoint, AverageMeter, clip_gradient, accuracy, get_logger
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
