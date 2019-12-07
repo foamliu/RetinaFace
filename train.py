@@ -8,12 +8,12 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from config import device, num_classes, train_label_file, valid_label_file, rgb_mean, print_freq, num_workers
+from config import device, num_classes, train_label_file, valid_label_file, rgb_mean, print_freq, num_workers, grad_clip
 from retinaface.data import WiderFaceDetection, detection_collate, preproc, cfg_mnet
 from retinaface.layers.functions.prior_box import PriorBox
 from retinaface.layers.modules import MultiBoxLoss
 from retinaface.models.retinaface import RetinaFace
-from utils import parse_args, save_checkpoint, AverageMeter, get_logger
+from utils import parse_args, save_checkpoint, AverageMeter, get_logger, clip_gradient
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -134,6 +134,9 @@ def train(train_loader, net, criterion, optimizer, cfg, priors, epoch, logger):
         loss = cfg['loc_weight'] * loss_l + loss_c + loss_landm
         loss.backward()
         optimizer.step()
+
+        # Clip gradients
+        clip_gradient(optimizer, grad_clip)
 
         # Update weights
         optimizer.step()
