@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from config import device, num_classes, training_dataset, rgb_mean, print_freq, num_workers
+from config import device, num_classes, train_label_file, valid_label_file, rgb_mean, print_freq, num_workers
 from retinaface.data import WiderFaceDetection, detection_collate, preproc, cfg_mnet
 from retinaface.layers.functions.prior_box import PriorBox
 from retinaface.layers.modules import MultiBoxLoss
@@ -66,10 +66,10 @@ def train_net(args):
         priors = priors.cuda()
 
     # Custom dataloaders
-    train_dataset = WiderFaceDetection(train_dataset, preproc(img_dim, rgb_mean))
+    train_dataset = WiderFaceDetection(train_label_file, preproc(img_dim, rgb_mean))
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size, shuffle=True, num_workers=num_workers,
                                                collate_fn=detection_collate)
-    valid_dataset = WiderFaceDetection(valid_dataset, preproc(img_dim, rgb_mean))
+    valid_dataset = WiderFaceDetection(valid_label_file, preproc(img_dim, rgb_mean))
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size, shuffle=False, num_workers=num_workers,
                                                collate_fn=detection_collate)
 
