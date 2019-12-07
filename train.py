@@ -70,8 +70,7 @@ def train_net(args):
     valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size, shuffle=False, num_workers=num_workers,
                                                collate_fn=detection_collate)
 
-    scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30, 40], gamma=0.1)
-    # scheduler = MultiStepLR(optimizer, milestones=[5, 10], gamma=0.1)
+    scheduler = MultiStepLR(optimizer, milestones=[190, 220], gamma=0.1)
 
     # Epochs
     for epoch in range(start_epoch, args.end_epoch):
@@ -129,16 +128,12 @@ def train(train_loader, net, criterion, optimizer, cfg, priors, epoch, logger):
         # forward
         out = net(images)
 
-        # backprop
+        # Back prop.
         optimizer.zero_grad()
         loss_l, loss_c, loss_landm = criterion(out, priors, targets)
         loss = cfg['loc_weight'] * loss_l + loss_c + loss_landm
         loss.backward()
         optimizer.step()
-
-        # Back prop.
-        optimizer.zero_grad()
-        loss.backward()
 
         # Update weights
         optimizer.step()
@@ -155,7 +150,7 @@ def train(train_loader, net, criterion, optimizer, cfg, priors, epoch, logger):
 
 
 def valid(valid_loader, net, criterion, cfg, priors, logger):
-    net.train()  # train mode (dropout and batchnorm is used)
+    net.eval()  # train mode (dropout and batchnorm is used)
 
     losses = AverageMeter()
 
@@ -166,7 +161,9 @@ def valid(valid_loader, net, criterion, cfg, priors, logger):
         targets = [anno.cuda() for anno in targets]
 
         # forward
-        out = net(images)
+        with torch.no_grad():
+            out = net(images)
+
         loss_l, loss_c, loss_landm = criterion(out, priors, targets)
         loss = cfg['loc_weight'] * loss_l + loss_c + loss_landm
 
