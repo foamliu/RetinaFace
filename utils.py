@@ -122,5 +122,5 @@ def draw_str(dst, target, s):
 def extract(filename):
     print('Extracting {}...'.format(filename))
     zip_ref = zipfile.ZipFile(filename, 'r')
-    zip_ref.extractall('data')
+    zip_ref.extractall('data_proc')
     zip_ref.close()

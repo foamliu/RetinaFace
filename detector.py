@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 
-from data import cfg_mnet
+from data_proc import cfg_mnet
 from layers.functions.prior_box import PriorBox
 from loader import load_model
 from utils.box_utils import decode, decode_landm
