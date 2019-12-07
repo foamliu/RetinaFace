@@ -1,5 +1,8 @@
+import shutil
 import zipfile
+
 from utils import ensure_folder
+
 
 def extract(filename, tgt_folder='data'):
     print('Extracting {}...'.format(filename))
@@ -15,4 +18,9 @@ if __name__ == "__main__":
     extract('data/WIDER_train.zip')
     extract('data/WIDER_val.zip')
     extract('data/WIDER_test.zip')
-
+    shutil.move('data/WIDER_train/images', 'data/train/')
+    shutil.move('data/WIDER_val/images', 'data/val/')
+    shutil.move('data/WIDER_test/images', 'data/test/')
+    shutil.rmtree('data/WIDER_train/')
+    shutil.rmtree('data/WIDER_val/')
+    shutil.rmtree('data/WIDER_test/')
