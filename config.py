@@ -21,8 +21,8 @@ rgb_mean = (104, 117, 123)  # bgr order
 num_classes = 2
 
 DATA_DIR = 'data'
-training_dataset = './data/widerface/train/label.txt'
-IMG_DIR = 'data/images'
+train_dataset = './data/widerface/train/label.txt'
+valid_dataset = './data/widerface/valid/label.txt'
 
 
 def get_logger():

@@ -6,13 +6,14 @@ import torch.backends.cudnn as cudnn
 from torch import nn
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
-from config import device, num_classes, training_dataset, rgb_mean, grad_clip, print_freq, num_workers
+from config import device, num_classes, training_dataset, rgb_mean, print_freq, num_workers
 from retinaface.data import WiderFaceDetection, detection_collate, preproc, cfg_mnet
 from retinaface.layers.functions.prior_box import PriorBox
 from retinaface.layers.modules import MultiBoxLoss
 from retinaface.models.retinaface import RetinaFace
-from utils import parse_args, save_checkpoint, AverageMeter, clip_gradient, get_logger
+from utils import parse_args, save_checkpoint, AverageMeter, get_logger
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -65,8 +66,11 @@ def train_net(args):
         priors = priors.cuda()
 
     # Custom dataloaders
-    dataset = WiderFaceDetection(training_dataset, preproc(img_dim, rgb_mean))
-    train_loader = torch.utils.data.DataLoader(dataset, batch_size, shuffle=True, num_workers=num_workers,
+    train_dataset = WiderFaceDetection(train_dataset, preproc(img_dim, rgb_mean))
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size, shuffle=True, num_workers=num_workers,
+                                               collate_fn=detection_collate)
+    valid_dataset = WiderFaceDetection(valid_dataset, preproc(img_dim, rgb_mean))
+    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size, shuffle=False, num_workers=num_workers,
                                                collate_fn=detection_collate)
 
     scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30, 40], gamma=0.1)
@@ -76,13 +80,13 @@ def train_net(args):
     for epoch in range(start_epoch, args.end_epoch):
         # One epoch's training
         train_loss = train(train_loader=train_loader,
-                                            net=net,
-                                            criterion=criterion,
-                                            optimizer=optimizer,
-                                            cfg=cfg,
-                                            priors=priors,
-                                            epoch=epoch,
-                                            logger=logger)
+                           net=net,
+                           criterion=criterion,
+                           optimizer=optimizer,
+                           cfg=cfg,
+                           priors=priors,
+                           epoch=epoch,
+                           logger=logger)
 
         writer.add_scalar('model/train_loss', train_loss, epoch)
 
@@ -91,7 +95,12 @@ def train_net(args):
         writer.add_scalar('model/learning_rate', lr, epoch)
 
         # One epoch's validation
-        val_acc, thres = test(net)
+        val_acc, thres = valid(valid_loader=valid_loader,
+                               net=net,
+                               criterion=criterion,
+                               cfg=cfg,
+                               priors=priors,
+                               logger=logger)
         writer.add_scalar('model/valid_accuracy', val_acc, epoch)
         writer.add_scalar('model/valid_threshold', thres, epoch)
 
@@ -135,9 +144,6 @@ def train(train_loader, net, criterion, optimizer, cfg, priors, epoch, logger):
         optimizer.zero_grad()
         loss.backward()
 
-        # Clip gradients
-        clip_gradient(optimizer, grad_clip)
-
         # Update weights
         optimizer.step()
 
@@ -147,8 +153,33 @@ def train(train_loader, net, criterion, optimizer, cfg, priors, epoch, logger):
         # Print status
         if i % print_freq == 0:
             logger.info('Epoch: [{0}][{1}/{2}]\t'
-                        'Loss {loss.val:.4f} ({loss.avg:.4f})'.format(epoch, i, len(train_loader),
-                                                                      loss=losses))
+                        'Loss {loss.val:.4f} ({loss.avg:.4f})'.format(epoch, i, len(train_loader), loss=losses))
+
+    return losses.avg
+
+
+def valid(valid_loader, net, criterion, cfg, priors, logger):
+    net.train()  # train mode (dropout and batchnorm is used)
+
+    losses = AverageMeter()
+
+    # Batches
+    for (images, targets) in tqdm(valid_loader):
+        # Move to GPU, if available
+        images = images.to(device)
+        targets = [anno.cuda() for anno in targets]
+
+        # forward
+        out = net(images)
+        loss_l, loss_c, loss_landm = criterion(out, priors, targets)
+        loss = cfg['loc_weight'] * loss_l + loss_c + loss_landm
+
+        # Keep track of metrics
+        losses.update(loss.item())
+
+        # Print status
+        status = 'Validation\t Loss {loss.avg:.5f}\n'.format(loss=losses)
+        logger.info(status)
 
     return losses.avg
 
