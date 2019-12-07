@@ -2,15 +2,17 @@ import warnings
 
 import numpy as np
 import torch
+import torch.backends.cudnn as cudnn
 from torch import nn
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.tensorboard import SummaryWriter
 
-from config import device, grad_clip, print_freq, num_workers
-from data_gen import FrameDataset
-from mobilenet_v2 import MobileNetV2
-from models import ArcMarginModel
-from utils import parse_args, save_checkpoint, AverageMeter, clip_gradient, accuracy, get_logger
+from config import device, num_classes, training_dataset, rgb_mean, grad_clip, print_freq, num_workers
+from retinaface.data import WiderFaceDetection, detection_collate, preproc, cfg_mnet
+from retinaface.layers.functions.prior_box import PriorBox
+from retinaface.layers.modules import MultiBoxLoss
+from retinaface.models.retinaface import RetinaFace
+from utils import parse_args, save_checkpoint, AverageMeter, clip_gradient, get_logger
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -24,41 +26,48 @@ def train_net(args):
     writer = SummaryWriter()
     epochs_since_improvement = 0
 
+    cfg = cfg_mnet
+    img_dim = cfg['image_size']
+    num_gpu = cfg['ngpu']
+    batch_size = cfg['batch_size']
+    max_epoch = cfg['epoch']
+    gpu_train = cfg['gpu_train']
+
     # Initialize / load checkpoint
     if checkpoint is None:
-        model = MobileNetV2()
-        metric_fc = ArcMarginModel(args)
+        net = RetinaFace(cfg=cfg)
+        print("Printing net...")
+        print(net)
+        net = nn.DataParallel(net)
 
-        if args.optimizer == 'sgd':
-            optimizer = torch.optim.SGD([{'params': model.parameters()}, {'params': metric_fc.parameters()}],
-                                        lr=args.lr, momentum=args.mom, weight_decay=args.weight_decay, nesterov=True)
-        else:
-            optimizer = torch.optim.Adam([{'params': model.parameters()}, {'params': metric_fc.parameters()}],
-                                         lr=args.lr, weight_decay=args.weight_decay)
-
-        model = nn.DataParallel(model)
-        metric_fc = nn.DataParallel(metric_fc)
+        optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=args.mom, weight_decay=args.weight_decay)
 
     else:
         checkpoint = torch.load(checkpoint)
         start_epoch = checkpoint['epoch'] + 1
         epochs_since_improvement = checkpoint['epochs_since_improvement']
-        model = checkpoint['model']
-        metric_fc = checkpoint['metric_fc']
+        net = checkpoint['net']
         optimizer = checkpoint['optimizer']
 
     logger = get_logger()
 
     # Move to GPU, if available
-    model = model.to(device)
-    metric_fc = metric_fc.to(device)
+    net = net.to(device)
+
+    cudnn.benchmark = True
 
     # Loss function
-    criterion = nn.CrossEntropyLoss().to(device)
+    criterion = MultiBoxLoss(num_classes, 0.35, True, 0, True, 7, 0.35, False)
+
+    priorbox = PriorBox(cfg, image_size=(img_dim, img_dim))
+    with torch.no_grad():
+        priors = priorbox.forward()
+        priors = priors.cuda()
 
     # Custom dataloaders
-    train_loader = torch.utils.data.DataLoader(FrameDataset('train'), batch_size=args.batch_size, shuffle=True,
-                                               num_workers=num_workers)
+    dataset = WiderFaceDetection(training_dataset, preproc(img_dim, rgb_mean))
+    train_loader = torch.utils.data.DataLoader(dataset, batch_size, shuffle=True, num_workers=num_workers,
+                                               collate_fn=detection_collate)
 
     scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30, 40], gamma=0.1)
     # scheduler = MultiStepLR(optimizer, milestones=[5, 10], gamma=0.1)
@@ -66,23 +75,23 @@ def train_net(args):
     # Epochs
     for epoch in range(start_epoch, args.end_epoch):
         # One epoch's training
-        train_loss, train_top5_accs = train(train_loader=train_loader,
-                                            model=model,
-                                            metric_fc=metric_fc,
+        train_loss = train(train_loader=train_loader,
+                                            net=net,
                                             criterion=criterion,
                                             optimizer=optimizer,
+                                            cfg=cfg,
+                                            priors=priors,
                                             epoch=epoch,
                                             logger=logger)
 
         writer.add_scalar('model/train_loss', train_loss, epoch)
-        writer.add_scalar('model/train_accuracy', train_top5_accs, epoch)
 
         lr = optimizer.param_groups[0]['lr']
         print('\nLearning rate: {}'.format(lr))
         writer.add_scalar('model/learning_rate', lr, epoch)
 
         # One epoch's validation
-        val_acc, thres = test(model)
+        val_acc, thres = test(net)
         writer.add_scalar('model/valid_accuracy', val_acc, epoch)
         writer.add_scalar('model/valid_threshold', thres, epoch)
 
@@ -98,28 +107,29 @@ def train_net(args):
             epochs_since_improvement = 0
 
         # Save checkpoint
-        save_checkpoint(epoch, epochs_since_improvement, model, metric_fc, optimizer, best_acc, is_best)
+        save_checkpoint(epoch, epochs_since_improvement, net, optimizer, best_acc, is_best)
 
 
-def train(train_loader, model, metric_fc, criterion, optimizer, epoch, logger):
-    model.train()  # train mode (dropout and batchnorm is used)
-    metric_fc.train()
+def train(train_loader, net, criterion, optimizer, cfg, priors, epoch, logger):
+    net.train()  # train mode (dropout and batchnorm is used)
 
     losses = AverageMeter()
-    top5_accs = AverageMeter()
 
     # Batches
-    for i, (img, label) in enumerate(train_loader):
+    for i, (images, targets) in enumerate(train_loader):
         # Move to GPU, if available
-        img = img.to(device)
-        label = label.to(device)  # [N, 1]
+        images = images.to(device)
+        targets = [anno.cuda() for anno in targets]
 
-        # Forward prop.
-        feature = model(img)  # embedding => [N, 512]
-        output = metric_fc(feature, label)  # class_id_out => [N, 9935]
+        # forward
+        out = net(images)
 
-        # Calculate loss
-        loss = criterion(output, label)
+        # backprop
+        optimizer.zero_grad()
+        loss_l, loss_c, loss_landm = criterion(out, priors, targets)
+        loss = cfg['loc_weight'] * loss_l + loss_c + loss_landm
+        loss.backward()
+        optimizer.step()
 
         # Back prop.
         optimizer.zero_grad()
@@ -133,18 +143,14 @@ def train(train_loader, model, metric_fc, criterion, optimizer, epoch, logger):
 
         # Keep track of metrics
         losses.update(loss.item())
-        top5_accuracy = accuracy(output, label, 5)
-        top5_accs.update(top5_accuracy)
 
         # Print status
         if i % print_freq == 0:
             logger.info('Epoch: [{0}][{1}/{2}]\t'
-                        'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                        'Top5 Accuracy {top5_accs.val:.3f} ({top5_accs.avg:.3f})'.format(epoch, i, len(train_loader),
-                                                                                         loss=losses,
-                                                                                         top5_accs=top5_accs))
+                        'Loss {loss.val:.4f} ({loss.avg:.4f})'.format(epoch, i, len(train_loader),
+                                                                      loss=losses))
 
-    return losses.avg, top5_accs.avg
+    return losses.avg
 
 
 def main():

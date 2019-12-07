@@ -97,7 +97,3 @@ def detection_collate(batch):
                 targets.append(annos)
 
     return (torch.stack(imgs, 0), targets)
-
-
-if __name__ == "__main__":
-    pass
