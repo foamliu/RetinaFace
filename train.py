@@ -36,7 +36,7 @@ def train_net(args):
         net = RetinaFace(cfg=cfg)
         print("Printing net...")
         print(net)
-        net = nn.DataParallel(net)
+        # net = nn.DataParallel(net)
 
         optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=args.mom, weight_decay=args.weight_decay)
 
