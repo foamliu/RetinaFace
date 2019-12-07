@@ -1,5 +1,3 @@
-import logging
-
 import torch
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # sets device for model and PyTorch tensors
@@ -23,16 +21,3 @@ num_classes = 2
 DATA_DIR = 'data'
 train_label_file = './data/widerface/train/label.txt'
 valid_label_file = './data/widerface/val/label.txt'
-
-
-def get_logger():
-    logger = logging.getLogger()
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter("%(asctime)s %(levelname)s \t%(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
-    return logger
-
-
-logger = get_logger()
