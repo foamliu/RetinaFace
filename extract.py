@@ -9,4 +9,8 @@ def extract(filename):
 
 
 if __name__ == "__main__":
-    extract('data/retinaface_gt_v1.zip')
+    extract('data/retinaface_gt_v1.1.zip')
+    extract('data/WIDER_train.zip')
+    extract('data/WIDER_val.zip')
+    extract('data/WIDER_test.zip')
+
