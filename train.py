@@ -23,16 +23,13 @@ def train_net(args):
     np.random.seed(7)
     checkpoint = args.checkpoint
     start_epoch = 0
-    best_acc = 0
+    best_loss = float('inf')
     writer = SummaryWriter()
     epochs_since_improvement = 0
 
     cfg = cfg_mnet
     img_dim = cfg['image_size']
-    num_gpu = cfg['ngpu']
     batch_size = cfg['batch_size']
-    max_epoch = cfg['epoch']
-    gpu_train = cfg['gpu_train']
 
     # Initialize / load checkpoint
     if checkpoint is None:
@@ -95,20 +92,19 @@ def train_net(args):
         writer.add_scalar('model/learning_rate', lr, epoch)
 
         # One epoch's validation
-        val_acc, thres = valid(valid_loader=valid_loader,
-                               net=net,
-                               criterion=criterion,
-                               cfg=cfg,
-                               priors=priors,
-                               logger=logger)
-        writer.add_scalar('model/valid_accuracy', val_acc, epoch)
-        writer.add_scalar('model/valid_threshold', thres, epoch)
+        val_loss = valid(valid_loader=valid_loader,
+                         net=net,
+                         criterion=criterion,
+                         cfg=cfg,
+                         priors=priors,
+                         logger=logger)
+        writer.add_scalar('model/valid_loss', val_loss, epoch)
 
         scheduler.step(epoch)
 
         # Check if there was an improvement
-        is_best = val_acc > best_acc
-        best_acc = max(val_acc, best_acc)
+        is_best = val_loss < best_loss
+        best_acc = min(val_loss, best_loss)
         if not is_best:
             epochs_since_improvement += 1
             print("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,))
