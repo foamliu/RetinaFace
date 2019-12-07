@@ -22,7 +22,7 @@ num_classes = 2
 
 DATA_DIR = 'data'
 train_label_file = './data/widerface/train/label.txt'
-valid_label_file = './data/widerface/valid/label.txt'
+valid_label_file = './data/widerface/val/label.txt'
 
 
 def get_logger():
