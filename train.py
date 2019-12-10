@@ -90,27 +90,27 @@ def train_net(args):
         writer.add_scalar('model/learning_rate', lr, epoch)
 
         # One epoch's validation
-        val_loss = valid(valid_loader=valid_loader,
-                         net=net,
-                         criterion=criterion,
-                         cfg=cfg,
-                         priors=priors,
-                         logger=logger)
-        writer.add_scalar('model/valid_loss', val_loss, epoch)
+        # val_loss = valid(valid_loader=valid_loader,
+        #                  net=net,
+        #                  criterion=criterion,
+        #                  cfg=cfg,
+        #                  priors=priors,
+        #                  logger=logger)
+        # writer.add_scalar('model/valid_loss', val_loss, epoch)
 
         scheduler.step(epoch)
 
         # Check if there was an improvement
-        is_best = val_loss < best_loss
-        best_acc = min(val_loss, best_loss)
-        if not is_best:
-            epochs_since_improvement += 1
-            print("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,))
-        else:
-            epochs_since_improvement = 0
+        # is_best = val_loss < best_loss
+        # best_acc = min(val_loss, best_loss)
+        # if not is_best:
+        #     epochs_since_improvement += 1
+        #     print("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,))
+        # else:
+        #     epochs_since_improvement = 0
 
         # Save checkpoint
-        save_checkpoint(epoch, epochs_since_improvement, net, optimizer, best_acc, is_best)
+        save_checkpoint(epoch, epochs_since_improvement, net, optimizer, train_loss, True)
 
 
 def train(train_loader, net, criterion, optimizer, cfg, priors, epoch, logger):
