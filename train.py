@@ -3,7 +3,6 @@ import warnings
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
-from torch import nn
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -131,7 +130,9 @@ def train(train_loader, net, criterion, optimizer, cfg, priors, epoch, logger):
         # Back prop.
         optimizer.zero_grad()
         loss_l, loss_c, loss_landm = criterion(out, priors, targets)
-        print('loc_weight={}, loss_l={}, loss_c={}, loss_landm={}'.format(cfg['loc_weight'], loss_l.item(), loss_c.item(), loss_landm.item()))
+        if loss_l.item() == float('inf'):
+            continue
+        # print('loc_weight={}, loss_l={}, loss_c={}, loss_landm={}'.format(cfg['loc_weight'], loss_l.item(), loss_c.item(), loss_landm.item()))
         loss = cfg['loc_weight'] * loss_l + loss_c + loss_landm
         loss.backward()
         optimizer.step()
