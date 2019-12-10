@@ -131,6 +131,7 @@ def train(train_loader, net, criterion, optimizer, cfg, priors, epoch, logger):
         # Back prop.
         optimizer.zero_grad()
         loss_l, loss_c, loss_landm = criterion(out, priors, targets)
+        print('loc_weight={}, loss_l={}, loss_c={}, loss_landm={}'.format(cfg['loc_weight'], loss_l.item(), loss_c.item(), loss_landm.item()))
         loss = cfg['loc_weight'] * loss_l + loss_c + loss_landm
         loss.backward()
         optimizer.step()
