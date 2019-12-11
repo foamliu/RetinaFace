@@ -2,6 +2,7 @@ import time
 
 import torch
 
+from retinaface.data import cfg_mnet
 from retinaface.models.retinaface import RetinaFace
 
 if __name__ == '__main__':
@@ -20,7 +21,7 @@ if __name__ == '__main__':
 
     print('loading {}...'.format(filename))
     start = time.time()
-    net = RetinaFace()
+    net = RetinaFace(cfg=cfg_mnet)
     net.load_state_dict(torch.load(filename))
     print('elapsed {} sec'.format(time.time() - start))
 
