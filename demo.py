@@ -3,11 +3,14 @@ import time
 import cv2 as cv
 import torch
 
+from retinaface.data import cfg_mnet
 from retinaface.detector import detect_faces
+from retinaface.models.retinaface import RetinaFace
 
 if __name__ == '__main__':
-    filename_scripted = 'retinaface_scripted.pt'
-    model = torch.jit.load(filename_scripted)
+    filename = 'retinaface.pt'
+    model = RetinaFace(cfg=cfg_mnet)
+    model.load_state_dict(torch.load(filename))
 
     # testing begin
     image_path = "images/test.jpg"
