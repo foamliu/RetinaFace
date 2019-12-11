@@ -10,7 +10,7 @@ from retinaface.models.retinaface import RetinaFace
 
 if __name__ == '__main__':
     filename = 'retinaface.pt'
-    model = RetinaFace(cfg=cfg_mnet)
+    model = RetinaFace(cfg=cfg_mnet, phase='test')
     model.load_state_dict(torch.load(filename))
     model = model.to(device)
     model.eval()
