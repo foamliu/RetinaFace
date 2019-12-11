@@ -10,7 +10,7 @@ if __name__ == '__main__':
     start = time.time()
     checkpoint = torch.load(checkpoint)
     print('elapsed {} sec'.format(time.time() - start))
-    net = checkpoint['net'].module
+    net = checkpoint['net']
 
     filename = 'retinaface.pt'
     print('saving {}...'.format(filename))
