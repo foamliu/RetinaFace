@@ -28,3 +28,20 @@ Extract images, scan them, to get bounding boxes and landmarks:
 $ python extract.py
 $ python pre_process.py
 ```
+
+### Train
+```bash
+$ python train.py
+```
+
+If you want to visualize during training, run in your terminal:
+```bash
+$ tensorboard --logdir runs
+```
+
+## Demo
+```bash
+$ python demo.py
+```
+
+![image](https://github.com/foamliu/RetinaFace/raw/master/images/result.jpg)
