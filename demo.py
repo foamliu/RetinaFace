@@ -2,7 +2,7 @@ import time
 
 import cv2 as cv
 import torch
-
+from config import device
 from retinaface.data import cfg_mnet
 from retinaface.detector import detect_faces
 from retinaface.models.retinaface import RetinaFace
@@ -11,6 +11,8 @@ if __name__ == '__main__':
     filename = 'retinaface.pt'
     model = RetinaFace(cfg=cfg_mnet)
     model.load_state_dict(torch.load(filename))
+    model = model.to(device)
+    model.eval()
 
     # testing begin
     image_path = "images/test.jpg"
