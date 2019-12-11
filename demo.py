@@ -2,6 +2,7 @@ import time
 
 import cv2 as cv
 import torch
+
 from config import device
 from retinaface.data import cfg_mnet
 from retinaface.detector import detect_faces
