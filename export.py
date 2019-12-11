@@ -10,28 +10,27 @@ if __name__ == '__main__':
     start = time.time()
     checkpoint = torch.load(checkpoint)
     print('elapsed {} sec'.format(time.time() - start))
-    model = checkpoint['model'].module
-    metric_fc = checkpoint['metric_fc'].module
+    net = checkpoint['net'].module
 
     filename = 'retinaface.pt'
     print('saving {}...'.format(filename))
     start = time.time()
-    torch.save(model.state_dict(), filename)
+    torch.save(net.state_dict(), filename)
     print('elapsed {} sec'.format(time.time() - start))
 
     print('loading {}...'.format(filename))
     start = time.time()
-    model = RetinaFace()
-    model.load_state_dict(torch.load(filename))
+    net = RetinaFace()
+    net.load_state_dict(torch.load(filename))
     print('elapsed {} sec'.format(time.time() - start))
 
     filename_scripted = 'retinaface_scripted.pt'
     print('saving {}...'.format(filename_scripted))
     start = time.time()
-    torch.jit.save(torch.jit.script(model), filename_scripted)
+    torch.jit.save(torch.jit.script(net), filename_scripted)
     print('elapsed {} sec'.format(time.time() - start))
 
     print('loading {}...'.format(filename))
     start = time.time()
-    model = torch.jit.load(filename_scripted)
+    net = torch.jit.load(filename_scripted)
     print('elapsed {} sec'.format(time.time() - start))
