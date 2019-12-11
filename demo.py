@@ -42,6 +42,6 @@ if __name__ == '__main__':
         cv.circle(img_raw, (landms[4], landms[9]), 1, (255, 0, 0), 4)
     # save image
 
-    # cv.imwrite('images/result.jpg', img_raw)
+    cv.imwrite('images/result.jpg', img_raw)
     cv.imshow('image', img_raw)
     cv.waitKey(0)
