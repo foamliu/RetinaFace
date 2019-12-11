@@ -49,5 +49,5 @@ if __name__ == '__main__':
     # save image
 
     cv.imwrite('images/result.jpg', img_raw)
-    cv.imshow('image', img_raw)
-    cv.waitKey(0)
+    # cv.imshow('image', img_raw)
+    # cv.waitKey(0)
